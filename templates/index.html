@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dilse.ai — Your AI Voice Diary</title>
+  <meta name="description" content="Dilse.ai is an AI-powered voice diary that transcribes, summarizes, and analyzes the sentiment of your daily voice entries." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Navigation -->
+  <nav class="top-nav fade-up">
+    <div class="logo">dilse.ai</div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}" class="active"><i class="fas fa-home"></i> Home</a>
+      <a href="{{ url_for('entries') }}"><i class="fas fa-book"></i> Journal</a>
+      <a href="{{ url_for('chatbot') }}"><i class="fas fa-robot"></i> Chatbot</a>
+      <a href="{{ url_for('chart') }}"><i class="fas fa-chart-area"></i> Insights</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero-section">
+    <div class="section-badge fade-up">✨ AI-Powered Journaling</div>
+    <h1 class="fade-up delay-1">Speak your mind,<br/><span class="gradient-text">understand your heart.</span></h1>
+    <p class="subtitle fade-up delay-2">Record your voice, and let AI transcribe, summarize, and analyze your emotions — all locally and securely.</p>
+    <div class="hero-actions fade-up delay-3">
+      <button class="btn btn-primary" onclick="document.getElementById('record-section').scrollIntoView({ behavior: 'smooth' })">
+        <i class="fas fa-microphone"></i> Start Recording
+      </button>
+      <a href="{{ url_for('entries') }}" class="btn btn-secondary">
+        <i class="fas fa-book-open"></i> View Journal
+      </a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-badge fade-up">Why Dilse.ai?</div>
+      <h2 class="fade-up delay-1">Everything you need to<br/><span class="gradient-text">understand yourself better</span></h2>
+    </div>
+    <div class="feature-grid">
+      <div class="glass-card feature-item fade-up delay-1">
+        <div class="feature-icon-wrap"><i class="fas fa-microphone-alt"></i></div>
+        <h3>Voice Recording</h3>
+        <p>Simply tap and speak. Your voice is instantly captured and transcribed using Google Cloud Speech AI.</p>
+      </div>
+      <div class="glass-card feature-item fade-up delay-2">
+        <div class="feature-icon-wrap"><i class="fas fa-brain"></i></div>
+        <h3>Mood Detection</h3>
+        <p>Advanced NLP identifies the emotional tone of your entries with VADER sentiment scoring and BART summarization.</p>
+      </div>
+      <div class="glass-card feature-item fade-up delay-3">
+        <div class="feature-icon-wrap"><i class="fas fa-robot"></i></div>
+        <h3>AI Companion</h3>
+        <p>Chat with your personal AI for mental clarity, motivational support, and reflections on your journal entries.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Record Section -->
+  <section class="section" id="record-section">
+    <div class="glass-card record-panel fade-up">
+      <div class="section-badge"><i class="fas fa-podcast"></i> Record</div>
+      <h2>Record Your Voice</h2>
+      <p class="subtitle" style="margin: 0 auto;">Start by recording how you feel today. We'll take care of the rest.</p>
+
+      <div class="record-controls">
+        <button class="btn btn-primary" type="button" id="btn-start" onclick="startRecording()">
+          <i class="fas fa-microphone"></i> Start
+        </button>
+        <button class="btn btn-secondary" type="button" id="btn-stop" onclick="stopRecording()" disabled>
+          <i class="fas fa-stop"></i> Stop
+        </button>
+      </div>
+
+      <div class="status-indicator" id="status">
+        <span class="dot"></span>
+        Not recording
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" id="uploadForm" action="/analyze" onsubmit="showLoader()" class="record-form">
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="date">Select Date</label>
+            <input type="date" id="date" name="date" class="form-control" required />
+          </div>
+        </div>
+        <input type="file" name="audio" id="audio" hidden />
+        <input type="hidden" name="language" value="en" />
+        <button type="submit" class="btn btn-primary" style="width:100%;max-width:280px;">
+          <i class="fas fa-wand-magic-sparkles"></i> Analyze Entry
+        </button>
+
+        <div class="loader-overlay" id="loader">
+          <div class="loader-spinner"></div>
+          <p>Transcribing & analyzing your entry…</p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Chatbot CTA -->
+  <section class="section">
+    <div class="glass-card fade-up" style="text-align:center; max-width:600px; margin:0 auto; padding:48px;">
+      <div class="section-badge"><i class="fas fa-comments"></i> AI Chat</div>
+      <h2>Your AI Companion</h2>
+      <p class="subtitle" style="margin:0 auto 24px;">Ask questions, get summaries, or simply talk. The AI companion is here for you.</p>
+      <a href="{{ url_for('chatbot') }}" class="btn btn-primary">
+        <i class="fas fa-robot"></i> Open Chatbot
+      </a>
+    </div>
+  </section>
+
+  <!-- Mood Preview -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-badge fade-up"><i class="fas fa-chart-line"></i> Insights</div>
+      <h2 class="fade-up delay-1">Track your emotional journey</h2>
+    </div>
+    <div class="glass-card fade-up delay-2" style="max-width:700px; margin:0 auto; height:260px; padding:24px;">
+      <canvas id="sentimentPreview"></canvas>
+    </div>
+    <div class="text-center mt-4 fade-up delay-3">
+      <a href="{{ url_for('chart') }}" class="btn btn-secondary">
+        <i class="fas fa-expand"></i> View Full Insights
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>&copy; 2025 dilse.ai — Built with <span style="color:var(--negative)">❤</span> to help you voice your story.</p>
+  </footer>
+
+</div>
+
+<!-- Scripts -->
+<script>
+  let mediaRecorder;
+  let audioChunks = [];
+  let stopTimeout;
+
+  function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstart = () => {
+          const status = document.getElementById("status");
+          status.className = "status-indicator recording";
+          status.innerHTML = '<span class="dot"></span> Recording…';
+          document.getElementById("btn-start").disabled = true;
+          document.getElementById("btn-stop").disabled = false;
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const file = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          document.getElementById("audio").files = dataTransfer.files;
+
+          const status = document.getElementById("status");
+          status.className = "status-indicator ready";
+          status.innerHTML = '<span class="dot"></span> Recording ready — click Analyze';
+          document.getElementById("btn-start").disabled = false;
+          document.getElementById("btn-stop").disabled = true;
+          clearTimeout(stopTimeout);
+        };
+
+        mediaRecorder.start();
+
+        stopTimeout = setTimeout(() => {
+          if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+          }
+        }, 60000);
+      })
+      .catch(err => {
+        console.error("Error accessing microphone:", err);
+        alert("Microphone access is required to record.");
+      });
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+  }
+
+  function showLoader() {
+    document.getElementById("loader").classList.add("active");
+  }
+
+  // Preview chart
+  document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('sentimentPreview').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+    gradient.addColorStop(0, 'rgba(124, 92, 252, 0.3)');
+    gradient.addColorStop(1, 'rgba(124, 92, 252, 0)');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Mood',
+          data: [0.2, -0.1, 0.5, 0.3, -0.3, 0.6, 0.4],
+          borderColor: '#7c5cfc',
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#7c5cfc',
+          pointBorderColor: '#0a0a0f',
+          pointBorderWidth: 2,
+          pointHoverRadius: 6,
+          borderWidth: 2.5
+        }]
+      },
+      options: {
+        animation: { duration: 1800, easing: 'easeInOutQuart' },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          y: {
+            min: -1, max: 1,
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: 'rgba(255,255,255,0.25)', font: { family: 'Inter', size: 11 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: 'rgba(255,255,255,0.25)', font: { family: 'Inter', size: 11 } }
+          }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+
+    setInterval(() => {
+      chart.data.datasets[0].data = chart.data.datasets[0].data.map(() =>
+        (Math.random() * 2 - 1).toFixed(2)
+      );
+      chart.update('active');
+    }, 4000);
+  });
+</script>
+
+</body>
+</html>

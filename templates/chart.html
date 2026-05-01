@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mood Insights — Dilse.ai</title>
+  <meta name="description" content="Visualize your emotional journey with sentiment charts and mood analysis." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Navigation -->
+  <nav class="top-nav fade-up">
+    <div class="logo">dilse.ai</div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a>
+      <a href="{{ url_for('entries') }}"><i class="fas fa-book"></i> Journal</a>
+      <a href="{{ url_for('chatbot') }}"><i class="fas fa-robot"></i> Chatbot</a>
+      <a href="{{ url_for('chart') }}" class="active"><i class="fas fa-chart-area"></i> Insights</a>
+    </div>
+  </nav>
+
+  <div class="chart-wrapper">
+    <div class="section-header">
+      <div class="section-badge fade-up"><i class="fas fa-chart-line"></i> Mood Insights</div>
+      <h1 class="fade-up delay-1">Your <span class="gradient-text">Emotional Journey</span></h1>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid fade-up delay-2">
+      <div class="glass-card stat-card">
+        <div class="stat-value" id="avg-score">
+          {{ '%.2f' % average_sentiment if average_sentiment is not none else '0.00' }}
+        </div>
+        <div class="stat-label">Average Score</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-value" id="mood-emoji" style="font-size:2.5rem;-webkit-text-fill-color:unset;background:none;">😐</div>
+        <div class="stat-label">Current Mood</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-value" id="total-entries">—</div>
+        <div class="stat-label">Total Entries</div>
+      </div>
+    </div>
+
+    <!-- Sentiment Quote -->
+    <div class="glass-card sentiment-quote fade-up delay-3">
+      "{{ sentiment_sentence or 'No entries yet to analyze sentiment.' }}"
+    </div>
+
+    <!-- Chart -->
+    <div class="glass-card chart-card fade-up delay-4">
+      <canvas id="moodChart"></canvas>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>&copy; 2025 dilse.ai — Built with <span style="color:var(--negative)">❤</span> to help you voice your story.</p>
+  </footer>
+</div>
+
+<script>
+  function getEmoji(score) {
+    if (score > 0.6) return "😄";
+    if (score > 0.2) return "🙂";
+    if (score > -0.2) return "😐";
+    if (score > -0.6) return "😕";
+    return "😢";
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const avgScore = parseFloat('{{ average_sentiment | default(0.0) }}') || 0;
+    document.getElementById('mood-emoji').textContent = getEmoji(avgScore);
+
+    fetch("/get_entries")
+      .then(response => response.json())
+      .then(data => {
+        if (!Array.isArray(data)) throw new Error("Invalid entries format");
+
+        document.getElementById('total-entries').textContent = data.length;
+
+        const labels = data.map(entry => entry.date || "—");
+        const scores = data.map(entry => parseFloat(entry.score) || 0);
+
+        const ctx = document.getElementById("moodChart").getContext("2d");
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(124, 92, 252, 0.35)');
+        gradient.addColorStop(1, 'rgba(124, 92, 252, 0)');
+
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [{
+              label: "Sentiment Score",
+              data: scores,
+              borderColor: "#7c5cfc",
+              backgroundColor: gradient,
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2.5,
+              pointRadius: 5,
+              pointHoverRadius: 8,
+              pointBackgroundColor: "#7c5cfc",
+              pointBorderColor: "#0a0a0f",
+              pointBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 1500,
+              easing: 'easeInOutQuart'
+            },
+            plugins: {
+              legend: {
+                display: true,
+                labels: {
+                  color: 'rgba(255,255,255,0.55)',
+                  font: { family: 'Inter', size: 12, weight: '500' },
+                  boxWidth: 12,
+                  boxHeight: 2,
+                  usePointStyle: false
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(18, 18, 26, 0.95)',
+                titleColor: 'rgba(255,255,255,0.9)',
+                bodyColor: 'rgba(255,255,255,0.7)',
+                borderColor: 'rgba(124,92,252,0.3)',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                displayColors: false,
+                callbacks: {
+                  label: function(context) {
+                    const val = context.parsed.y;
+                    let label = val >= 0.1 ? 'Positive' : val <= -0.1 ? 'Negative' : 'Neutral';
+                    return `Score: ${val.toFixed(2)} — ${label}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                min: -1,
+                max: 1,
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: {
+                  color: 'rgba(255,255,255,0.3)',
+                  font: { family: 'Inter', size: 11 },
+                  stepSize: 0.5
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: 'rgba(255,255,255,0.3)',
+                  font: { family: 'Inter', size: 11 },
+                  maxRotation: 45
+                }
+              }
+            }
+          }
+        });
+      })
+      .catch(err => {
+        console.error("Error loading mood chart:", err);
+      });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Virtual Environments
+venv/
+venv310/
+env/
+env_new/
+env313_new/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Credentials and sensitive info
+credentials/
+*.json
+!credentials/dilse_apikey.json.example
+
+# App data
+uploads/
+entries.json
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Misc
+.env
+.vscode/
+*.exe

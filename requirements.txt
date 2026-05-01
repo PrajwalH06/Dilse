@@ -1,0 +1,8 @@
+Flask
+transformers
+torch
+vaderSentiment
+spacy
+googletrans==4.0.0rc1
+google-cloud-speech
+werkzeug

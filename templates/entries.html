@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Journal Entries — Dilse.ai</title>
+  <meta name="description" content="View, edit, and manage your voice diary journal entries." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Navigation -->
+  <nav class="top-nav fade-up">
+    <div class="logo">dilse.ai</div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a>
+      <a href="{{ url_for('entries') }}" class="active"><i class="fas fa-book"></i> Journal</a>
+      <a href="{{ url_for('chatbot') }}"><i class="fas fa-robot"></i> Chatbot</a>
+      <a href="{{ url_for('chart') }}"><i class="fas fa-chart-area"></i> Insights</a>
+    </div>
+  </nav>
+
+  <section class="section">
+    <div class="entries-header">
+      <div>
+        <div class="section-badge fade-up"><i class="fas fa-book-open"></i> Journal</div>
+        <h1 class="fade-up delay-1">Your Entries</h1>
+      </div>
+      <div class="fade-up delay-2">
+        <span class="entries-count" id="entry-count">Loading…</span>
+      </div>
+    </div>
+
+    <div id="entries-list">
+      <!-- Entries loaded via JS -->
+    </div>
+
+    <div class="empty-state" id="empty-state" style="display:none;">
+      <div class="empty-icon"><i class="fas fa-feather-pointed"></i></div>
+      <p>No entries yet. Start journaling to see your voice diary here.</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">
+        <i class="fas fa-microphone"></i> Record Your First Entry
+      </a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>&copy; 2025 dilse.ai — Built with <span style="color:var(--negative)">❤</span> to help you voice your story.</p>
+  </footer>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-content">
+    <h3><i class="fas fa-pen" style="color:var(--accent-light);margin-right:8px;"></i> Edit Entry</h3>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group">
+      <label class="form-label">Transcript</label>
+      <textarea id="edit-transcript" class="form-control" rows="3" style="resize:vertical;"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Summary</label>
+      <textarea id="edit-summary" class="form-control" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEdit()">
+        <i class="fas fa-check"></i> Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function getSentimentClass(score) {
+    const s = parseFloat(score);
+    if (s >= 0.1) return 'positive';
+    if (s <= -0.1) return 'negative';
+    return 'neutral';
+  }
+
+  function getSentimentLabel(score) {
+    const s = parseFloat(score);
+    if (s >= 0.5) return 'Very Positive';
+    if (s >= 0.1) return 'Positive';
+    if (s <= -0.5) return 'Very Negative';
+    if (s <= -0.1) return 'Negative';
+    return 'Neutral';
+  }
+
+  function parseDate(dateStr) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return { day: parseInt(parts[2]), month: MONTHS[parseInt(parts[1]) - 1] || '' };
+    }
+    return { day: '--', month: '' };
+  }
+
+  function renderEntries(entries) {
+    const list = document.getElementById('entries-list');
+    const empty = document.getElementById('empty-state');
+    const count = document.getElementById('entry-count');
+
+    if (!entries.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      count.textContent = '0 entries';
+      return;
+    }
+
+    empty.style.display = 'none';
+    count.textContent = entries.length + ' entr' + (entries.length === 1 ? 'y' : 'ies');
+
+    list.innerHTML = entries.map((entry, i) => {
+      const d = parseDate(entry.date);
+      const cls = getSentimentClass(entry.score);
+      const label = getSentimentLabel(entry.score);
+      const scoreVal = parseFloat(entry.score).toFixed(2);
+
+      return `
+        <div class="glass-card entry-card fade-up delay-${Math.min(i + 1, 5)}">
+          <div class="entry-date-badge">
+            <span class="day">${d.day}</span>
+            <span class="month">${d.month}</span>
+          </div>
+          <div class="entry-content">
+            <h3>${entry.summary || 'No summary'}</h3>
+            <p>${entry.transcript ? entry.transcript.substring(0, 160) + (entry.transcript.length > 160 ? '…' : '') : 'No transcript'}</p>
+            <span class="entry-sentiment ${cls}">${label} (${scoreVal})</span>
+          </div>
+          <div class="entry-actions">
+            <button class="btn btn-secondary btn-sm" onclick="openEditModal('${entry.id}', \`${(entry.transcript || '').replace(/`/g, "'").replace(/\\/g, '\\\\')}\`, \`${(entry.summary || '').replace(/`/g, "'").replace(/\\/g, '\\\\')}\`)" title="Edit">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteEntry('${entry.id}')" title="Delete">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function loadEntries() {
+    fetch('/get_entries')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          data.sort((a, b) => b.date.localeCompare(a.date));
+          renderEntries(data);
+        }
+      })
+      .catch(err => console.error('Error loading entries:', err));
+  }
+
+  function deleteEntry(id) {
+    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    fetch(`/delete_entry/${id}`, { method: 'DELETE' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'success') loadEntries();
+        else alert(data.message);
+      })
+      .catch(err => alert('Error deleting entry'));
+  }
+
+  function openEditModal(id, transcript, summary) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-transcript').value = transcript;
+    document.getElementById('edit-summary').value = summary;
+    document.getElementById('edit-modal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('edit-modal').classList.remove('active');
+  }
+
+  function submitEdit() {
+    const id = document.getElementById('edit-id').value;
+    const transcript = document.getElementById('edit-transcript').value;
+    const summary = document.getElementById('edit-summary').value;
+
+    fetch(`/edit_entry/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, summary })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        closeModal();
+        loadEntries();
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(err => alert('Error updating entry'));
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('edit-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.addEventListener('DOMContentLoaded', loadEntries);
+</script>
+
+</body>
+</html>

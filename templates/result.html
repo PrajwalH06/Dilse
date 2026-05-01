@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analysis Result — Dilse.ai</title>
+  <meta name="description" content="View your voice diary analysis results including transcript, summary, and sentiment score." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Navigation -->
+  <nav class="top-nav fade-up">
+    <div class="logo">dilse.ai</div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a>
+      <a href="{{ url_for('entries') }}"><i class="fas fa-book"></i> Journal</a>
+      <a href="{{ url_for('chatbot') }}"><i class="fas fa-robot"></i> Chatbot</a>
+      <a href="{{ url_for('chart') }}"><i class="fas fa-chart-area"></i> Insights</a>
+    </div>
+  </nav>
+
+  <section class="section">
+    <div class="section-header">
+      <div class="section-badge fade-up"><i class="fas fa-sparkles"></i> Analysis Complete</div>
+      <h1 class="fade-up delay-1">Your Entry for <span class="gradient-text" id="date">{{ date }}</span></h1>
+    </div>
+
+    <div class="result-grid">
+
+      <!-- Sentiment Score -->
+      <div class="glass-card result-card fade-up delay-1">
+        <div class="result-label"><i class="fas fa-gauge-high"></i> Sentiment Score</div>
+        <div class="score-display">
+          <span class="score-number" id="score">{{ score }}</span>
+          <div>
+            <div class="score-label" id="sentiment">{{ sentiment }}</div>
+            <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">
+              Range: -1 (negative) to +1 (positive)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transcript -->
+      <div class="glass-card result-card fade-up delay-2">
+        <div class="result-label"><i class="fas fa-quote-left"></i> Transcript</div>
+        <div class="result-value" id="transcript">{{ transcript }}</div>
+      </div>
+
+      <!-- Summary -->
+      <div class="glass-card result-card fade-up delay-3">
+        <div class="result-label"><i class="fas fa-align-left"></i> AI Summary</div>
+        <div class="result-value" id="summary">{{ summary }}</div>
+      </div>
+
+    </div>
+
+    <div class="result-actions fade-up delay-4">
+      <button class="btn btn-primary" onclick="saveEntry()" id="save-btn">
+        <i class="fas fa-bookmark"></i> Save to Journal
+      </button>
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">
+        <i class="fas fa-plus"></i> New Entry
+      </a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>&copy; 2025 dilse.ai — Built with <span style="color:var(--negative)">❤</span> to help you voice your story.</p>
+  </footer>
+</div>
+
+<script>
+  function saveEntry() {
+    const summary = document.getElementById("summary").innerText;
+    const transcript = document.getElementById("transcript").innerText;
+    const sentiment = document.getElementById("sentiment").innerText;
+    const score = parseFloat(document.getElementById("score").innerText);
+    const date = document.getElementById("date").innerText;
+
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+    fetch('/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, transcript, summary, sentiment, score }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+        btn.style.background = 'var(--positive)';
+        setTimeout(() => { window.location.href = "/entries"; }, 800);
+      } else {
+        alert("Error saving entry: " + data.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bookmark"></i> Save to Journal';
+      }
+    })
+    .catch(error => {
+      console.error("Error:", error);
+      alert("An unexpected error occurred.");
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-bookmark"></i> Save to Journal';
+    });
+  }
+</script>
+
+</body>
+</html>
